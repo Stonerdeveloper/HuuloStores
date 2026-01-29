@@ -131,6 +131,10 @@
 }
 
 @media (max-width: 768px) {
+    .shop-header h1 {
+        font-size: 1.75rem;
+    }
+
     .shop-content {
         flex-direction: column;
     }
@@ -142,5 +146,34 @@
 
     .mobile-filter-btn {
         display: flex;
+    }
+
+    .shop-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .shop-controls {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .shop-page {
+        padding: 1rem 0;
+    }
+
+    .shop-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .shop-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .shop-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
     }
 }

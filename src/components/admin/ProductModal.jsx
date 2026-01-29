@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
 const ProductModal = ({ product, isOpen, onClose, onSave }) => {
@@ -15,6 +15,9 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
     });
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState('');
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -35,6 +38,7 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
                 badge: product.badge || '',
                 description: product.description || ''
             });
+            setImagePreview(product.image);
         } else {
             setFormData({
                 name: '',
@@ -45,31 +49,99 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
                 badge: '',
                 description: ''
             });
+            setImagePreview('');
         }
+        setImageFile(null);
     }, [product, isOpen]);
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setImageFile(file);
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const uploadImage = async () => {
+        if (!imageFile) return formData.image; // Return existing URL if no new file
+
+        setUploading(true);
+        console.log('Starting image upload...', imageFile.name, imageFile.size, imageFile.type);
+
+        try {
+            const fileExt = imageFile.name.split('.').pop().toLowerCase();
+            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+            const filePath = `products/${fileName}`;
+
+            console.log('Uploading to path:', filePath);
+
+            const { data, error: uploadError } = await supabase.storage
+                .from('product-images')
+                .upload(filePath, imageFile, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: imageFile.type
+                });
+
+            console.log('Upload response:', { data, uploadError });
+
+            if (uploadError) {
+                console.error('Upload error details:', uploadError);
+                throw uploadError;
+            }
+
+            // Get public URL
+            const { data: urlData } = supabase.storage
+                .from('product-images')
+                .getPublicUrl(filePath);
+
+            console.log('Public URL:', urlData.publicUrl);
+            return urlData.publicUrl;
+        } catch (error) {
+            console.error('Upload error:', error);
+            throw new Error('Failed to upload image: ' + (error.message || 'Unknown error'));
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
 
-        const payload = {
-            ...formData,
-            price: Number(formData.price),
-            old_price: formData.old_price ? Number(formData.old_price) : null
-        };
-
         try {
+            // Upload image if there's a new file
+            const imageUrl = await uploadImage();
+
+            const payload = {
+                ...formData,
+                image: imageUrl,
+                price: Number(formData.price),
+                old_price: formData.old_price ? Number(formData.old_price) : null
+            };
+
             if (product) {
-                // Update
-                const { data, error } = await supabase
+                // Update - FIXED: removed .select().single()
+                const { error } = await supabase
                     .from('products')
                     .update(payload)
-                    .eq('id', product.id)
-                    .select()
-                    .single();
+                    .eq('id', product.id);
 
                 if (error) throw error;
-                onSave(data, 'update');
+
+                // Fetch the updated product separately
+                const { data: updatedProduct } = await supabase
+                    .from('products')
+                    .select('*')
+                    .eq('id', product.id)
+                    .single();
+
+                onSave(updatedProduct, 'update');
             } else {
                 // Insert
                 const { data, error } = await supabase
@@ -133,8 +205,39 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Image URL</label>
-                        <input required type="url" value={formData.image} onChange={e => setFormData({ ...formData, image: e.target.value })} placeholder="https://..." />
+                        <label>Product Image</label>
+                        <div style={{
+                            border: '2px dashed var(--border-color)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '1.5rem',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            position: 'relative'
+                        }}>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageChange}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    opacity: 0,
+                                    cursor: 'pointer'
+                                }}
+                            />
+                            {imagePreview ? (
+                                <img src={imagePreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: 'var(--radius-md)' }} />
+                            ) : (
+                                <div>
+                                    <Upload size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Click to upload image</p>
+                                </div>
+                            )}
+                        </div>
+                        {imageFile && <p style={{ fontSize: '0.85rem', color: 'var(--color-success)', marginTop: '0.5rem' }}>✓ {imageFile.name}</p>}
                     </div>
 
                     <div className="form-group">
@@ -147,8 +250,8 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
                         <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows="3" style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}></textarea>
                     </div>
 
-                    <button type="submit" disabled={loading} className="btn-primary" style={{ marginTop: '1rem' }}>
-                        {loading ? 'Saving...' : 'Save Product'}
+                    <button type="submit" disabled={loading || uploading} className="btn-primary" style={{ marginTop: '1rem' }}>
+                        {uploading ? 'Uploading Image...' : loading ? 'Saving...' : 'Save Product'}
                     </button>
                 </form>
             </div>

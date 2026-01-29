@@ -113,7 +113,7 @@ const ProductDetail = () => {
                         </div>
 
                         <p className="detail-description">
-                            Elevate your gaming experience with the {product.name}. Featuring state-of-the-art technology, immersive graphics, and lightning-fast performance. This is the ultimate choice for gamers who demand the best.
+                            {product.description || `Experience the ${product.name}. Premium quality gaming gear designed to elevate your gameplay.`}
                         </p>
 
                         <ul className="detail-features">

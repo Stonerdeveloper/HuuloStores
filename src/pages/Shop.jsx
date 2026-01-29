@@ -1,16 +1,29 @@
 
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { Filter, ChevronDown } from 'lucide-react';
 import './Shop.css';
-import { supabase } from '../lib/supabaseClient'; // Assuming supabase client is configured and exported here
+import { supabase } from '../lib/supabaseClient';
 
 const Shop = () => {
+    const { category: urlCategory } = useParams();
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [priceRange, setPriceRange] = useState(1000000);
     const [categories, setCategories] = useState(['All', 'Console', 'Game', 'Accessory']);
-    const [products, setProducts] = useState([]); // State to hold fetched products
-    const [loading, setLoading] = useState(true); // State to manage loading status
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // Map URL slugs to actual category names
+    const categoryMap = {
+        'ps5': 'PlayStation',
+        'playstation': 'PlayStation',
+        'xbox': 'Xbox',
+        'nintendo': 'Nintendo',
+        'console': 'Console',
+        'game': 'Game',
+        'accessory': 'Accessory'
+    };
 
     useEffect(() => {
         const fetchMethods = async () => {
@@ -36,6 +49,24 @@ const Shop = () => {
 
         fetchMethods();
     }, []);
+
+    // Set selected category from URL when categories are loaded
+    useEffect(() => {
+        if (urlCategory) {
+            const mappedCategory = categoryMap[urlCategory.toLowerCase()];
+            if (mappedCategory && categories.includes(mappedCategory)) {
+                setSelectedCategory(mappedCategory);
+            } else {
+                // Try to find a case-insensitive match in categories
+                const found = categories.find(c => c.toLowerCase() === urlCategory.toLowerCase());
+                if (found) {
+                    setSelectedCategory(found);
+                }
+            }
+        } else {
+            setSelectedCategory('All');
+        }
+    }, [urlCategory, categories]);
 
     const filteredProducts = products.filter(product => {
         const matchCategory = selectedCategory === 'All' || product.category === selectedCategory;

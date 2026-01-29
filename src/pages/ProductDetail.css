@@ -229,6 +229,61 @@
     }
 
     .detail-title {
-        font-size: 1.75rem;
+        font-size: 1.5rem;
+    }
+
+    .detail-price {
+        font-size: 1.5rem;
+    }
+
+    .detail-actions {
+        flex-wrap: wrap;
+        height: auto;
+    }
+
+    .quantity-selector {
+        flex: 0 0 auto;
+    }
+
+    .add-cart-large {
+        flex: 1 1 100%;
+        order: 3;
+        padding: 1rem;
+    }
+
+    .thumbnails {
+        justify-content: center;
+    }
+
+    .thumbnail {
+        width: 60px;
+        height: 60px;
+    }
+
+    .related-section {
+        margin-top: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .product-detail-page {
+        padding: 1rem 0 2rem;
+    }
+
+    .breadcrumb {
+        font-size: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .detail-description {
+        font-size: 0.95rem;
+    }
+
+    .detail-features li {
+        font-size: 0.9rem;
     }
 }
