@@ -72,11 +72,7 @@ const Navbar = () => {
                     <ul className="nav-links">
                         <li><Link to="/">Home</Link></li>
                         <li><Link to="/shop">Shop</Link></li>
-                        <li><Link to="/category/PlayStation">PlayStation</Link></li>
-                        <li><Link to="/category/Xbox">Xbox</Link></li>
-                        <li><Link to="/category/Nintendo">Nintendo</Link></li>
-                        <li><Link to="/wholesale">Wholesale</Link></li>
-                        {/* Mobile Only Auth Links could go here if needed, but actions are usually enough */}
+                        <li><Link to="/blog">Blog</Link></li>
                     </ul>
                 </div>
             </div>

@@ -95,20 +95,22 @@
     display: none;
     align-items: center;
     gap: 0.5rem;
-    background: var(--bg-card);
+    background: white;
     border: 1px solid var(--border-color);
     padding: 0.5rem 1rem;
     color: var(--text-primary);
     border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
 }
 
 .sort-select {
-    background: var(--bg-card);
+    background: white;
     color: var(--text-primary);
     border: 1px solid var(--border-color);
     padding: 0.5rem;
     border-radius: var(--radius-sm);
     outline: none;
+    cursor: pointer;
 }
 
 .shop-grid {

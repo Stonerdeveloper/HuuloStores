@@ -1,5 +1,5 @@
 .navbar {
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-primary);
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
@@ -25,10 +25,10 @@
     flex: 1;
     max-width: 600px;
     display: flex;
-    background-color: var(--bg-card);
+    background-color: var(--bg-secondary);
     border-radius: var(--radius-md);
     padding: 0.25rem;
-    border: 1px solid transparent;
+    border: 1px solid var(--border-color);
     transition: border-color 0.2s;
 }
 
@@ -57,8 +57,7 @@
 }
 
 .search-btn:hover {
-    background-color: #2563eb;
-    /* Darker blue */
+    filter: brightness(1.2);
 }
 
 .navbar-actions {
@@ -110,7 +109,7 @@
 
 /* Bottom Nav / Categories */
 .navbar-bottom {
-    background-color: var(--bg-card);
+    background-color: var(--bg-secondary);
     border-top: 1px solid var(--border-color);
 }
 

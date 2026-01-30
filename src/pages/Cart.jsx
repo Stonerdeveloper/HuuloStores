@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Plus, Minus, ArrowRight } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, Check } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePaystackPayment } from 'react-paystack';
 import './Cart.css';
@@ -10,9 +10,25 @@ import './Cart.css';
 import { supabase } from '../lib/supabaseClient'; // Import supabase
 
 const Cart = () => {
-    const { cart, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart();
+    const { cart, updateQuantity, removeFromCart, getCartTotal, clearCart, updateItemMetadata } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
+
+    // Checkout Steps: 'review', 'shipping'
+    const [checkoutStep, setCheckoutStep] = useState('review');
+    const [shippingInfo, setShippingInfo] = useState({
+        fullName: '',
+        phoneNumber: '',
+        address: '',
+        city: '',
+        state: ''
+    });
+
+    // Game Selection Modal State
+    const [showGameModal, setShowGameModal] = useState(false);
+    const [modalProduct, setModalProduct] = useState(null);
+    const [availableGames, setAvailableGames] = useState([]);
+    const [tempSelectedGames, setTempSelectedGames] = useState([]);
 
     const subtotal = getCartTotal();
     const shipping = subtotal > 1000000 ? 0 : 5000;
@@ -38,8 +54,13 @@ const Cart = () => {
                     {
                         user_id: user.id,
                         total_amount: total,
-                        status: 'paid', // Assuming success from Paystack means paid
-                        payment_reference: reference.reference
+                        status: 'pending',
+                        payment_reference: reference.reference,
+                        full_name: shippingInfo.fullName,
+                        phone_number: shippingInfo.phoneNumber,
+                        shipping_address: shippingInfo.address,
+                        city: shippingInfo.city,
+                        state: shippingInfo.state
                     }
                 ])
                 .select()
@@ -54,7 +75,8 @@ const Cart = () => {
                 product_name: item.name,
                 quantity: item.quantity,
                 price: item.price,
-                image: item.image
+                image: item.image,
+                metadata: { selectedGames: item.selectedGames || [] }
             }));
 
             const { error: itemsError } = await supabase
@@ -95,14 +117,63 @@ const Cart = () => {
         }).format(amount);
     };
 
-    const handleCheckout = () => {
+    const handleCheckout = async () => {
         if (!user) {
             navigate('/login');
             return;
         }
 
+        // 1. Validate Game Selection for Consoles
+        const consolesWithoutGames = cart.filter(item =>
+            item.category === 'Console' && (!item.selectedGames || item.selectedGames.length === 0)
+        );
+
+        if (consolesWithoutGames.length > 0) {
+            // Fetch games and open modal for the first one
+            setModalProduct(consolesWithoutGames[0]);
+            const { data: gamesData } = await supabase
+                .from('products')
+                .select('*')
+                .eq('category', 'Game')
+                .order('name', { ascending: true });
+
+            if (gamesData) setAvailableGames(gamesData);
+            setTempSelectedGames([]);
+            setShowGameModal(true);
+            return;
+        }
+
+        // 2. Move to Shipping
+        setCheckoutStep('shipping');
+    };
+
+    const handleShippingSubmit = (e) => {
+        e.preventDefault();
+        // Simple validation
+        if (!shippingInfo.fullName || !shippingInfo.phoneNumber || !shippingInfo.address) {
+            alert('Please fill in all required shipping details.');
+            return;
+        }
+
         // Trigger Paystack payment
         initializePayment(onSuccess, onClose);
+    };
+
+    const saveGameSelection = () => {
+        if (tempSelectedGames.length === 0) {
+            if (!confirm('Proceed without selecting any games?')) return;
+        }
+        updateItemMetadata(modalProduct.id, { selectedGames: tempSelectedGames });
+        setShowGameModal(false);
+        setModalProduct(null);
+    };
+
+    const toggleGameInModal = (game) => {
+        setTempSelectedGames(prev => {
+            const isSelected = prev.find(g => g.id === game.id);
+            if (isSelected) return prev.filter(g => g.id !== game.id);
+            return [...prev, game];
+        });
     };
 
     if (cart.length === 0) {
@@ -121,6 +192,40 @@ const Cart = () => {
         <div className="cart-page container">
             <h1>Shopping <span className="text-accent">Cart</span></h1>
 
+            {showGameModal && (
+                <div className="game-modal-overlay">
+                    <div className="game-modal">
+                        <h2>Select Games for {modalProduct?.name}</h2>
+                        <p>This console needs pre-installed games. Please select at least one.</p>
+
+                        <div className="game-selection-grid">
+                            {availableGames.map(game => (
+                                <div
+                                    key={game.id}
+                                    className={`game-selection-card ${tempSelectedGames.find(g => g.id === game.id) ? 'selected' : ''}`}
+                                    onClick={() => toggleGameInModal(game)}
+                                >
+                                    <div className="game-card-img">
+                                        <img src={game.image} alt={game.name} />
+                                    </div>
+                                    <div className="game-card-info">
+                                        <span className="game-card-name">{game.name}</span>
+                                    </div>
+                                    <div className="selection-indicator">
+                                        <Check size={12} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="modal-actions">
+                            <button className="btn-secondary" onClick={() => setShowGameModal(false)}>Cancel</button>
+                            <button className="btn-primary" onClick={saveGameSelection}>Save Selection</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="cart-content">
                 <div className="cart-items">
                     <div className="cart-header">
@@ -138,6 +243,16 @@ const Cart = () => {
                                 <div>
                                     <h3>{item.name}</h3>
                                     <span className="cart-item-cat">{item.category}</span>
+                                    {item.selectedGames?.length > 0 && (
+                                        <div className="cart-item-games">
+                                            <strong>Games to install:</strong>
+                                            <ul>
+                                                {item.selectedGames.map(game => (
+                                                    <li key={game.id}>{game.name}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -160,6 +275,62 @@ const Cart = () => {
 
                 <div className="cart-summary">
                     <h2>Order Summary</h2>
+
+                    {checkoutStep === 'shipping' && (
+                        <form id="shipping-form" className="shipping-form" onSubmit={handleShippingSubmit}>
+                            <h3>Shipping Details</h3>
+                            <div className="form-group">
+                                <label>Full Name *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Enter full name"
+                                    value={shippingInfo.fullName}
+                                    onChange={(e) => setShippingInfo({ ...shippingInfo, fullName: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Phone Number *</label>
+                                <input
+                                    type="tel"
+                                    required
+                                    placeholder="Enter phone number"
+                                    value={shippingInfo.phoneNumber}
+                                    onChange={(e) => setShippingInfo({ ...shippingInfo, phoneNumber: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Delivery Address *</label>
+                                <textarea
+                                    required
+                                    placeholder="Full street address, apartment, etc."
+                                    value={shippingInfo.address}
+                                    onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>City</label>
+                                    <input
+                                        type="text"
+                                        placeholder="City"
+                                        value={shippingInfo.city}
+                                        onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>State</label>
+                                    <input
+                                        type="text"
+                                        placeholder="State"
+                                        value={shippingInfo.state}
+                                        onChange={(e) => setShippingInfo({ ...shippingInfo, state: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        </form>
+                    )}
+
                     <div className="summary-row">
                         <span>Subtotal</span>
                         <span>{formatPrice(subtotal)}</span>
@@ -174,9 +345,20 @@ const Cart = () => {
                         <span>{formatPrice(total)}</span>
                     </div>
 
-                    <button className="checkout-btn" onClick={handleCheckout}>
-                        Proceed to Checkout <ArrowRight size={18} />
-                    </button>
+                    {checkoutStep === 'review' ? (
+                        <button className="checkout-btn" onClick={handleCheckout}>
+                            Proceed to Shipping <ArrowRight size={18} />
+                        </button>
+                    ) : (
+                        <div className="checkout-actions">
+                            <button className="back-btn" onClick={() => setCheckoutStep('review')}>
+                                Back to Cart
+                            </button>
+                            <button type="submit" form="shipping-form" className="checkout-btn">
+                                Complete Payment
+                            </button>
+                        </div>
+                    )}
 
                     <Link to="/shop" className="continue-shopping">
                         Continue Shopping

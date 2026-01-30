@@ -11,12 +11,15 @@ import Cart from './pages/Cart';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Account from './pages/Account';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminCategories from './pages/admin/AdminCategories';
+import AdminBlog from './pages/admin/AdminBlog';
 import { CartProvider } from './context/CartContext';
 
 function App() {
@@ -33,6 +36,7 @@ function App() {
                 <Route path="products" element={<AdminProducts />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="categories" element={<AdminCategories />} />
+                <Route path="blog" element={<AdminBlog />} />
               </Route>
 
               {/* Public/Customer Routes */}
@@ -49,6 +53,8 @@ function App() {
                       <Route path="/login" element={<Login />} />
                       <Route path="/signup" element={<Signup />} />
                       <Route path="/account" element={<Account />} />
+                      <Route path="/blog" element={<Blog />} />
+                      <Route path="/blog/:slug" element={<BlogPost />} />
                       <Route path="/wholesale" element={<div className="container" style={{ padding: '2rem' }}>Wholesale Page Coming Soon</div>} />
                       <Route path="*" element={<div className="container" style={{ padding: '2rem' }}>404 Not Found</div>} />
                     </Routes>

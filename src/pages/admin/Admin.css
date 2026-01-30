@@ -1,12 +1,32 @@
 .admin-dashboard {
+    /* Override global dark theme for admin */
+    --bg-primary: #f8fafc;
+    /* Slate 50 */
+    --bg-secondary: #f1f5f9;
+    /* Slate 100 */
+    --bg-card: #ffffff;
+    /* White */
+    --bg-sidebar: #f0f9ff;
+    /* Sky 50 - Very light blue */
+    --text-primary: #0f172a;
+    /* Slate 900 */
+    --text-secondary: #64748b;
+    /* Slate 500 */
+    --border-color: #e2e8f0;
+    /* Slate 200 */
+    --color-primary: #0EA5E9;
+    /* Sky 500 */
+    /* Slightly different blue for admin */
+
     display: flex;
     min-height: 100vh;
     background-color: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .admin-sidebar {
     width: 250px;
-    background-color: var(--bg-card);
+    background-color: var(--bg-sidebar);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;

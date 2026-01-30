@@ -44,9 +44,10 @@ const AdminOrders = () => {
 
     const getStatusColor = (status) => {
         switch (status.toLowerCase()) {
-            case 'paid': return 'var(--color-success)';
-            case 'delivered': return 'var(--color-primary)';
+            case 'pending': return 'var(--color-accent)';
             case 'processing': return 'orange';
+            case 'delivered': return 'var(--color-primary)';
+            case 'completed': return 'var(--color-success)';
             default: return 'var(--text-secondary)';
         }
     };
@@ -63,6 +64,7 @@ const AdminOrders = () => {
                         <tr>
                             <th>Order ID</th>
                             <th>Customer</th>
+                            <th>Shipping Info</th>
                             <th>Date</th>
                             <th>Total</th>
                             <th>Status</th>
@@ -73,7 +75,20 @@ const AdminOrders = () => {
                         {orders.map(order => (
                             <tr key={order.id}>
                                 <td style={{ fontFamily: 'monospace' }}>#{order.id.slice(0, 8)}</td>
-                                <td>{order.profiles?.email || 'Unknown User'}</td>
+                                <td>
+                                    <strong>{order.full_name || 'N/A'}</strong><br />
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{order.profiles?.email}</span>
+                                </td>
+                                <td>
+                                    <div style={{ fontSize: '0.85rem' }}>
+                                        {order.phone_number && <div>📞 {order.phone_number}</div>}
+                                        {order.shipping_address && (
+                                            <div style={{ color: 'var(--text-secondary)', maxWidth: '200px', whiteSpace: 'normal' }}>
+                                                📍 {order.shipping_address}, {order.city}, {order.state}
+                                            </div>
+                                        )}
+                                    </div>
+                                </td>
                                 <td>{new Date(order.created_at).toLocaleDateString()}</td>
                                 <td>₦{Number(order.total_amount).toLocaleString()}</td>
                                 <td>
@@ -93,19 +108,27 @@ const AdminOrders = () => {
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                                         <button
                                             className="action-btn"
-                                            title="Mark Delivered"
-                                            onClick={() => updateStatus(order.id, 'delivered')}
-                                            style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}
-                                        >
-                                            <CheckCircle size={16} />
-                                        </button>
-                                        <button
-                                            className="action-btn"
                                             title="Mark Processing"
                                             onClick={() => updateStatus(order.id, 'processing')}
                                             style={{ background: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-primary)' }}
                                         >
                                             <Truck size={16} />
+                                        </button>
+                                        <button
+                                            className="action-btn"
+                                            title="Mark Delivered"
+                                            onClick={() => updateStatus(order.id, 'delivered')}
+                                            style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}
+                                        >
+                                            <Truck size={16} />
+                                        </button>
+                                        <button
+                                            className="action-btn"
+                                            title="Mark Completed"
+                                            onClick={() => updateStatus(order.id, 'completed')}
+                                            style={{ background: 'var(--color-success)', color: 'white' }}
+                                        >
+                                            <CheckCircle size={16} />
                                         </button>
                                     </div>
                                 </td>

@@ -9,10 +9,13 @@ import './ProductDetail.css';
 
 const ProductDetail = () => {
     const { id } = useParams();
+    const [selectedImage, setSelectedImage] = useState('');
     const [product, setProduct] = useState(null);
-    const [quantity, setQuantity] = useState(1);
     const [relatedProducts, setRelatedProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [quantity, setQuantity] = useState(1);
+    const [availableGames, setAvailableGames] = useState([]);
+    const [selectedGames, setSelectedGames] = useState([]);
     const { addToCart } = useCart();
 
     useEffect(() => {
@@ -28,6 +31,7 @@ const ProductDetail = () => {
 
                 if (productError) throw productError;
                 setProduct(productData);
+                setSelectedImage(productData.image); // Set initial main image
 
                 // Fetch related products
                 if (productData) {
@@ -39,6 +43,17 @@ const ProductDetail = () => {
                         .limit(4);
 
                     if (relatedData) setRelatedProducts(relatedData);
+
+                    // Fetch games if it's a console
+                    if (productData.category === 'Console') {
+                        const { data: gamesData } = await supabase
+                            .from('products')
+                            .select('*')
+                            .eq('category', 'Game')
+                            .order('name', { ascending: true });
+
+                        if (gamesData) setAvailableGames(gamesData);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching product details:', error);
@@ -48,11 +63,7 @@ const ProductDetail = () => {
         };
 
         fetchProduct();
-
-        // Reset quantity
         setQuantity(1);
-
-        // Scroll to top
         window.scrollTo(0, 0);
     }, [id]);
 
@@ -64,6 +75,10 @@ const ProductDetail = () => {
         return <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>Product not found.</div>;
     }
 
+    const allImages = product.images && product.images.length > 0
+        ? product.images
+        : [product.image].filter(Boolean);
+
     const formatPrice = (amount) => {
         return new Intl.NumberFormat('en-NG', {
             style: 'currency',
@@ -73,8 +88,19 @@ const ProductDetail = () => {
     };
 
     const handleAddToCart = () => {
-        addToCart(product, quantity);
+        addToCart(product, quantity, selectedGames);
         alert('Added ' + quantity + ' item(s) to cart!');
+    };
+
+    const toggleGameSelection = (game) => {
+        setSelectedGames(prev => {
+            const isSelected = prev.find(g => g.id === game.id);
+            if (isSelected) {
+                return prev.filter(g => g.id !== game.id);
+            } else {
+                return [...prev, game];
+            }
+        });
     };
 
     return (
@@ -89,16 +115,22 @@ const ProductDetail = () => {
                     {/* Product Image */}
                     <div className="product-gallery">
                         <div className="main-image">
-                            <img src={product.image} alt={product.name} />
+                            <img src={selectedImage || product.image} alt={product.name} />
                         </div>
-                        {/* Thumbnails placeholder */}
-                        <div className="thumbnails">
-                            {[1, 2, 3].map((item) => (
-                                <div key={item} className={`thumbnail ${item === 1 ? 'active' : ''}`}>
-                                    <img src={product.image} alt="thumbnail" />
-                                </div>
-                            ))}
-                        </div>
+
+                        {allImages.length > 1 && (
+                            <div className="thumbnails">
+                                {allImages.map((imgUrl, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`thumbnail ${selectedImage === imgUrl ? 'active' : ''}`}
+                                        onClick={() => setSelectedImage(imgUrl)}
+                                    >
+                                        <img src={imgUrl} alt={`thumbnail-${idx}`} />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Product Info */}
@@ -108,7 +140,7 @@ const ProductDetail = () => {
 
                         <div className="detail-price-row">
                             <span className="detail-price">{formatPrice(product.price)}</span>
-                            {product.oldPrice && <span className="detail-old-price">{formatPrice(product.oldPrice)}</span>}
+                            {product.old_price && <span className="detail-old-price">{formatPrice(product.old_price)}</span>}
                             {product.badge && <span className="detail-badge">{product.badge}</span>}
                         </div>
 
@@ -121,6 +153,32 @@ const ProductDetail = () => {
                             <li><Check size={16} className="text-accent" /> Fast Delivery Nationwide</li>
                             <li><Check size={16} className="text-accent" /> 7-Day Return Policy</li>
                         </ul>
+
+                        {product.category === 'Console' && availableGames.length > 0 && (
+                            <div className="game-selection-section">
+                                <h3 className="section-subtitle">Select Games to Install <span className="game-count">({selectedGames.length} selected)</span></h3>
+                                <p className="section-hint">Choose games you'd like us to pre-install on your console.</p>
+                                <div className="game-selection-grid">
+                                    {availableGames.map(game => (
+                                        <div
+                                            key={game.id}
+                                            className={`game-selection-card ${selectedGames.find(g => g.id === game.id) ? 'selected' : ''}`}
+                                            onClick={() => toggleGameSelection(game)}
+                                        >
+                                            <div className="game-card-img">
+                                                <img src={game.image} alt={game.name} />
+                                            </div>
+                                            <div className="game-card-info">
+                                                <span className="game-card-name">{game.name}</span>
+                                            </div>
+                                            <div className="selection-indicator">
+                                                <Check size={12} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="detail-actions">
                             <div className="quantity-selector">

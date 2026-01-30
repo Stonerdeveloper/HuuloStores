@@ -19,7 +19,7 @@ const Account = () => {
         }
     }, [user, loading, navigate]);
 
-    // Fetch Orders
+    // Fetch Orders with items
     useEffect(() => {
         if (user && activeTab === 'orders') {
             const fetchOrders = async () => {
@@ -27,11 +27,8 @@ const Account = () => {
                 const { data, error } = await supabase
                     .from('orders')
                     .select(`
-                        id,
-                        created_at,
-                        total_amount,
-                        status,
-                        order_items (product_name)
+                        *,
+                        order_items (*)
                     `)
                     .eq('user_id', user.id)
                     .order('created_at', { ascending: false });
@@ -62,6 +59,16 @@ const Account = () => {
         });
     };
 
+    const getStatusColor = (status) => {
+        switch (status.toLowerCase()) {
+            case 'pending': return '#F59E0B';
+            case 'processing': return '#3B82F6';
+            case 'delivered': return '#10B981';
+            case 'completed': return 'var(--color-primary)';
+            default: return 'var(--text-secondary)';
+        }
+    };
+
     return (
         <div className="account-page container">
             <div className="account-sidebar">
@@ -70,7 +77,7 @@ const Account = () => {
                         <User size={32} />
                     </div>
                     <div className="user-info">
-                        <h3>My Account</h3>
+                        <h3>{user.email?.split('@')[0]}</h3>
                         <p>{user.email}</p>
                     </div>
                 </div>
@@ -80,20 +87,21 @@ const Account = () => {
                         className={`account-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
                         onClick={() => setActiveTab('profile')}
                     >
-                        <User size={20} /> Profile
+                        <User size={20} /> My Profile
                     </button>
                     <button
                         className={`account-nav-item ${activeTab === 'orders' ? 'active' : ''}`}
                         onClick={() => setActiveTab('orders')}
                     >
-                        <Package size={20} /> Orders
+                        <Package size={20} /> My Orders
                     </button>
                     <button
                         className={`account-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
                         onClick={() => setActiveTab('settings')}
                     >
-                        <Settings size={20} /> Settings
+                        <Settings size={20} /> Security
                     </button>
+                    <div className="nav-divider"></div>
                     <button onClick={handleSignOut} className="account-nav-item logout">
                         <LogOut size={20} /> Logout
                     </button>
@@ -104,95 +112,131 @@ const Account = () => {
                 {activeTab === 'profile' && (
                     <div className="account-section">
                         <div className="welcome-banner">
-                            <h1>Welcome back, {user.email?.split('@')[0]}!</h1>
-                            <p>Here's what's happening with your account today.</p>
+                            <h1>Welcome back, <span className="text-accent">{user.email?.split('@')[0]}</span>! 👋</h1>
+                            <p>Manage your orders, profile details, and account security here.</p>
                         </div>
 
                         <div className="account-stats">
-                            <div className="stat-box">
-                                <span className="stat-label">Total Orders</span>
-                                <span className="stat-number">{orders.length}</span>
+                            <div className="stat-card">
+                                <div className="stat-icon orders"><Package /></div>
+                                <div className="stat-details">
+                                    <span className="stat-label">Total Orders</span>
+                                    <span className="stat-number">{orders.length}</span>
+                                </div>
                             </div>
-                            <div className="stat-box">
-                                <span className="stat-label">Total Spent</span>
-                                <span className="stat-number">
-                                    ₦{orders.reduce((acc, curr) => acc + Number(curr.total_amount), 0).toLocaleString()}
-                                </span>
-                            </div>
-                            <div className="stat-box">
-                                <span className="stat-label">Member Status</span>
-                                <span className="stat-number" style={{ color: 'var(--color-accent)', fontSize: '1.2rem' }}>Gold Tier</span>
+                            <div className="stat-card">
+                                <div className="stat-icon spent"><Package /></div>
+                                <div className="stat-details">
+                                    <span className="stat-label">Total Spent</span>
+                                    <span className="stat-number">
+                                        ₦{orders.reduce((acc, curr) => acc + Number(curr.total_amount), 0).toLocaleString()}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
-                        <h2>Profile Details</h2>
-                        <div style={{ background: 'var(--bg-card)', padding: '2rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
-                            <div className="form-group">
-                                <label>Email Address</label>
-                                <input type="email" value={user.email} disabled style={{ background: 'var(--bg-secondary)' }} />
-                            </div>
-                            {/* More fields can act as placeholder for future */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                        <div className="profile-details-card">
+                            <h2>Personal Information</h2>
+                            <div className="profile-grid">
                                 <div className="form-group">
-                                    <label>First Name</label>
-                                    <input type="text" placeholder="Start typing..." />
+                                    <label>Account Email</label>
+                                    <input type="email" value={user.email} disabled />
                                 </div>
                                 <div className="form-group">
-                                    <label>Last Name</label>
-                                    <input type="text" placeholder="Start typing..." />
+                                    <label>Full Name</label>
+                                    <input type="text" placeholder="Add your name" />
+                                </div>
+                                <div className="form-group">
+                                    <label>Phone Number</label>
+                                    <input type="tel" placeholder="Add your phone" />
+                                </div>
+                                <div className="form-group">
+                                    <label>Last Login</label>
+                                    <input type="text" value={new Date(user.last_sign_in_at).toLocaleString()} disabled />
                                 </div>
                             </div>
-                            <button className="btn-primary" style={{ marginTop: '1.5rem' }}>Save Changes</button>
+                            <button className="btn-primary update-btn">Update Profile</button>
                         </div>
                     </div>
                 )}
 
                 {activeTab === 'orders' && (
                     <div className="account-section">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                            <h2 style={{ margin: 0 }}>My Orders</h2>
-                            <span style={{ color: 'var(--text-secondary)' }}>{orders.length} orders found</span>
+                        <div className="section-header">
+                            <div>
+                                <h2>Order History</h2>
+                                <p>Manage and track your recent purchases</p>
+                            </div>
+                            <span className="order-count">{orders.length} orders total</span>
                         </div>
 
                         {loadingOrders ? (
-                            <div style={{ padding: '2rem', textAlign: 'center' }}>Loading your history...</div>
+                            <div className="loading-state">
+                                <div className="spinner"></div>
+                                <p>Loading your history...</p>
+                            </div>
                         ) : orders.length === 0 ? (
-                            <div style={{ padding: '4rem', textAlign: 'center', background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border-color)' }}>
-                                <Package size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                            <div className="empty-orders">
+                                <Package size={64} />
                                 <h3>No orders yet</h3>
-                                <p style={{ marginBottom: '2rem' }}>Start shopping to see your orders here.</p>
-                                <button className="btn-primary" onClick={() => navigate('/shop')}>Browse Shop</button>
+                                <p>Your order history is currently empty. Start exploring our shop!</p>
+                                <button className="btn-primary" onClick={() => navigate('/shop')}>Browse Products</button>
                             </div>
                         ) : (
-                            <div className="orders-list">
+                            <div className="orders-timeline">
                                 {orders.map(order => (
-                                    <div key={order.id} className="order-card">
-                                        <div className="order-header">
-                                            <div>
-                                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Order ID</span>
-                                                <span className="order-id" style={{ fontFamily: 'monospace', fontSize: '1.1rem' }}>#{order.id.slice(0, 8)}</span>
+                                    <div key={order.id} className="modern-order-card">
+                                        <div className="order-main-info">
+                                            <div className="order-id-group">
+                                                <span className="label">Order Ref</span>
+                                                <span className="value">#{order.id.slice(0, 8).toUpperCase()}</span>
                                             </div>
-                                            <span className={`status-badge status-${order.status.toLowerCase()}`}>{order.status}</span>
+                                            <div className="order-date-group">
+                                                <span className="label">Placed On</span>
+                                                <span className="value">{formatDate(order.created_at)}</span>
+                                            </div>
+                                            <div className="order-total-group">
+                                                <span className="label">Total Amount</span>
+                                                <span className="value price">₦{Number(order.total_amount).toLocaleString()}</span>
+                                            </div>
+                                            <div className="order-status-group">
+                                                <span
+                                                    className="status-pill"
+                                                    style={{ backgroundColor: getStatusColor(order.status) + '15', color: getStatusColor(order.status) }}
+                                                >
+                                                    {order.status}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="order-body">
-                                            <div className="order-meta">
-                                                <div className="meta-item">
-                                                    <label>Date Placed</label>
-                                                    <span>{formatDate(order.created_at)}</span>
-                                                </div>
-                                                <div className="meta-item">
-                                                    <label>Total Amount</label>
-                                                    <span style={{ color: 'var(--color-primary)' }}>₦{Number(order.total_amount).toLocaleString()}</span>
-                                                </div>
-                                            </div>
 
-                                            <div className="order-products">
-                                                {order.order_items.map((item, idx) => (
-                                                    <div key={idx} className="mini-product-chip">
-                                                        {item.quantity}x {item.product_name}
+                                        <div className="order-expanded-info">
+                                            <div className="order-items-scroll">
+                                                {order.order_items?.map((item, idx) => (
+                                                    <div key={idx} className="order-item-row">
+                                                        <div className="item-img">
+                                                            <img src={item.image} alt="" />
+                                                        </div>
+                                                        <div className="item-info">
+                                                            <h4>{item.product_name}</h4>
+                                                            <p>{item.quantity} x ₦{Number(item.price).toLocaleString()}</p>
+                                                            {item.metadata?.selectedGames?.length > 0 && (
+                                                                <div className="item-games">
+                                                                    Installed: {item.metadata.selectedGames.map(g => g.name).join(', ')}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
+
+                                            {order.shipping_address && (
+                                                <div className="shipping-mini-track">
+                                                    <h5>Delivery Address</h5>
+                                                    <p>{order.full_name}</p>
+                                                    <p>{order.shipping_address}, {order.city}, {order.state}</p>
+                                                    <p>{order.phone_number}</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -203,8 +247,21 @@ const Account = () => {
 
                 {activeTab === 'settings' && (
                     <div className="account-section">
-                        <h2>Account Settings</h2>
-                        <p className="text-secondary">Manage your preferences and security settings.</p>
+                        <div className="welcome-banner" style={{ background: 'var(--color-primary)' }}>
+                            <h1>Security Settings</h1>
+                            <p>Manage your password and active sessions.</p>
+                        </div>
+                        <div className="profile-details-card">
+                            <div className="form-group">
+                                <label>New Password</label>
+                                <input type="password" placeholder="••••••••" />
+                            </div>
+                            <div className="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" placeholder="••••••••" />
+                            </div>
+                            <button className="btn-primary">Reset Password</button>
+                        </div>
                     </div>
                 )}
             </div>

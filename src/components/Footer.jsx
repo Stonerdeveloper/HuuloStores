@@ -24,6 +24,7 @@ const Footer = () => {
                     <ul className="footer-links">
                         <li><a href="/">Home</a></li>
                         <li><a href="/shop">Shop All</a></li>
+                        <li><a href="/blog">Blog</a></li>
                         <li><a href="/wholesale">Wholesale</a></li>
                         <li><a href="/cart">My Cart</a></li>
                         <li><a href="/login">Login / Register</a></li>

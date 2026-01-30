@@ -4,7 +4,7 @@
     /* Adjust as needed */
     width: 100%;
     overflow: hidden;
-    background-color: #000;
+    background-color: var(--bg-primary);
 }
 
 .hero-slide {
@@ -32,7 +32,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(90deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 100%);
+    background: linear-gradient(90deg, rgba(15, 61, 78, 0.7) 0%, rgba(15, 61, 78, 0.2) 100%);
     z-index: 2;
 }
 
@@ -66,13 +66,14 @@
     font-size: 1.1rem;
     font-weight: bold;
     color: white;
-    background-color: var(--color-primary);
+    background-color: var(--text-accent);
     border: none;
     border-radius: var(--radius-md);
     cursor: pointer;
     transition: transform 0.2s, filter 0.2s;
     animation: slideUp 0.8s ease-out 0.4s forwards;
     opacity: 0;
+    box-shadow: 0 4px 15px rgba(124, 205, 254, 0.4);
 }
 
 .hero-cta:hover {

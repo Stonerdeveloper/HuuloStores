@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingBag, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, LogOut, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './Admin.css';
 
@@ -46,6 +46,9 @@ const AdminLayout = () => {
                     </NavLink>
                     <NavLink to="/admin/orders" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
                         <ShoppingBag size={20} /> Orders
+                    </NavLink>
+                    <NavLink to="/admin/blog" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
+                        <FileText size={20} /> Blog
                     </NavLink>
 
                     <button onClick={handleSignOut} className="admin-logout">

@@ -17,17 +17,24 @@ export const CartProvider = ({ children }) => {
         localStorage.setItem('huulo_cart', JSON.stringify(cart));
     }, [cart]);
 
-    const addToCart = (product, quantity = 1) => {
+    const addToCart = (product, quantity = 1, selectedGames = []) => {
         setCart(prevCart => {
-            const existingItem = prevCart.find(item => item.id === product.id);
+            // Uniquely identify item based on ID AND selected games
+            const gameIds = selectedGames.map(g => g.id).sort().join(',');
+            const existingItem = prevCart.find(item => {
+                const itemGameIds = (item.selectedGames || []).map(g => g.id).sort().join(',');
+                return item.id === product.id && itemGameIds === gameIds;
+            });
+
             if (existingItem) {
-                return prevCart.map(item =>
-                    item.id === product.id
+                return prevCart.map(item => {
+                    const itemGameIds = (item.selectedGames || []).map(g => g.id).sort().join(',');
+                    return (item.id === product.id && itemGameIds === gameIds)
                         ? { ...item, quantity: item.quantity + quantity }
-                        : item
-                );
+                        : item;
+                });
             } else {
-                return [...prevCart, { ...product, quantity }];
+                return [...prevCart, { ...product, quantity, selectedGames }];
             }
         });
     };
@@ -42,6 +49,17 @@ export const CartProvider = ({ children }) => {
                 if (item.id === productId) {
                     const newQty = item.quantity + change;
                     return newQty > 0 ? { ...item, quantity: newQty } : item;
+                }
+                return item;
+            });
+        });
+    };
+
+    const updateItemMetadata = (productId, metadata) => {
+        setCart(prevCart => {
+            return prevCart.map(item => {
+                if (item.id === productId) {
+                    return { ...item, ...metadata };
                 }
                 return item;
             });
@@ -66,6 +84,7 @@ export const CartProvider = ({ children }) => {
             addToCart,
             removeFromCart,
             updateQuantity,
+            updateItemMetadata,
             clearCart,
             getCartCount,
             getCartTotal

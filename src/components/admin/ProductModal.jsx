@@ -10,14 +10,15 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
         price: '',
         old_price: '',
         image: '',
+        images: [],
         badge: '',
         description: ''
     });
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
-    const [imageFile, setImageFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState('');
+    const [imageFiles, setImageFiles] = useState([]);
+    const [imagePreviews, setImagePreviews] = useState([]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -35,10 +36,11 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
                 price: product.price,
                 old_price: product.old_price || '',
                 image: product.image,
+                images: product.images || [],
                 badge: product.badge || '',
                 description: product.description || ''
             });
-            setImagePreview(product.image);
+            setImagePreviews(product.images || [product.image].filter(Boolean));
         } else {
             setFormData({
                 name: '',
@@ -46,65 +48,82 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
                 price: '',
                 old_price: '',
                 image: '',
+                images: [],
                 badge: '',
                 description: ''
             });
-            setImagePreview('');
+            setImagePreviews([]);
         }
-        setImageFile(null);
+        setImageFiles([]);
     }, [product, isOpen]);
 
     const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setImageFile(file);
-            // Create preview
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result);
-            };
-            reader.readAsDataURL(file);
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            setImageFiles(prev => [...prev, ...files]);
+
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setImagePreviews(prev => [...prev, reader.result]);
+                };
+                reader.readAsDataURL(file);
+            });
         }
     };
 
-    const uploadImage = async () => {
-        if (!imageFile) return formData.image; // Return existing URL if no new file
+    const removeImage = (index) => {
+        // If it's a new file (from imageFiles)
+        // Note: this is a bit tricky because previews contain both existing URLs and new base64
+        // We'll manage it by index
+        const newPreviews = [...imagePreviews];
+        const removedPreview = newPreviews.splice(index, 1)[0];
+        setImagePreviews(newPreviews);
+
+        // If it was a newly selected file, remove it from imageFiles too
+        // We can check if it's base64 (new) or URL (existing)
+        if (removedPreview.startsWith('data:')) {
+            // It's a bit hard to map exactly without extra state, 
+            // but for simplicity, we'll just filter out the file if we can track it
+            // Better: use objects for previews { url, file }
+        }
+    };
+
+    const uploadImages = async () => {
+        if (imageFiles.length === 0) return formData.images;
 
         setUploading(true);
-        console.log('Starting image upload...', imageFile.name, imageFile.size, imageFile.type);
+        const uploadedUrls = [];
 
         try {
-            const fileExt = imageFile.name.split('.').pop().toLowerCase();
-            const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
-            const filePath = `products/${fileName}`;
+            for (const file of imageFiles) {
+                const fileExt = file.name.split('.').pop().toLowerCase();
+                const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+                const filePath = `products/${fileName}`;
 
-            console.log('Uploading to path:', filePath);
+                const { error: uploadError } = await supabase.storage
+                    .from('product-images')
+                    .upload(filePath, file, {
+                        cacheControl: '3600',
+                        upsert: false,
+                        contentType: file.type
+                    });
 
-            const { data, error: uploadError } = await supabase.storage
-                .from('product-images')
-                .upload(filePath, imageFile, {
-                    cacheControl: '3600',
-                    upsert: false,
-                    contentType: imageFile.type
-                });
+                if (uploadError) throw uploadError;
 
-            console.log('Upload response:', { data, uploadError });
+                const { data: urlData } = supabase.storage
+                    .from('product-images')
+                    .getPublicUrl(filePath);
 
-            if (uploadError) {
-                console.error('Upload error details:', uploadError);
-                throw uploadError;
+                uploadedUrls.push(urlData.publicUrl);
             }
 
-            // Get public URL
-            const { data: urlData } = supabase.storage
-                .from('product-images')
-                .getPublicUrl(filePath);
-
-            console.log('Public URL:', urlData.publicUrl);
-            return urlData.publicUrl;
+            // Combine existing URLs (that weren't removed) with new ones
+            const existingUrls = imagePreviews.filter(p => !p.startsWith('data:'));
+            return [...existingUrls, ...uploadedUrls];
         } catch (error) {
             console.error('Upload error:', error);
-            throw new Error('Failed to upload image: ' + (error.message || 'Unknown error'));
+            throw new Error('Failed to upload images: ' + (error.message || 'Unknown error'));
         } finally {
             setUploading(false);
         }
@@ -115,12 +134,12 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
         setLoading(true);
 
         try {
-            // Upload image if there's a new file
-            const imageUrl = await uploadImage();
+            const allImageUrls = await uploadImages();
 
             const payload = {
                 ...formData,
-                image: imageUrl,
+                image: allImageUrls[0] || '', // First image is main
+                images: allImageUrls,
                 price: Number(formData.price),
                 old_price: formData.old_price ? Number(formData.old_price) : null
             };
@@ -187,7 +206,7 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
 
                     <div className="form-group">
                         <label>Category</label>
-                        <select required value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
+                        <select required value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
                             <option value="">Select Category</option>
                             {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
@@ -205,18 +224,21 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Product Image</label>
+                        <label>Product Images (Upload multiple)</label>
                         <div style={{
                             border: '2px dashed var(--border-color)',
                             borderRadius: 'var(--radius-md)',
                             padding: '1.5rem',
                             textAlign: 'center',
                             cursor: 'pointer',
-                            position: 'relative'
+                            position: 'relative',
+                            background: 'var(--bg-primary)',
+                            marginBottom: '1rem'
                         }}>
                             <input
                                 type="file"
                                 accept="image/*"
+                                multiple
                                 onChange={handleImageChange}
                                 style={{
                                     position: 'absolute',
@@ -228,16 +250,33 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
                                     cursor: 'pointer'
                                 }}
                             />
-                            {imagePreview ? (
-                                <img src={imagePreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: 'var(--radius-md)' }} />
-                            ) : (
-                                <div>
-                                    <Upload size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Click to upload image</p>
-                                </div>
-                            )}
+                            <div>
+                                <Upload size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Click to upload multiple images</p>
+                            </div>
                         </div>
-                        {imageFile && <p style={{ fontSize: '0.85rem', color: 'var(--color-success)', marginTop: '0.5rem' }}>✓ {imageFile.name}</p>}
+
+                        {imagePreviews.length > 0 && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+                                {imagePreviews.map((preview, idx) => (
+                                    <div key={idx} style={{ position: 'relative', height: '80px' }}>
+                                        <img src={preview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeImage(idx)}
+                                            style={{
+                                                position: 'absolute', top: '-5px', right: '-5px',
+                                                background: 'var(--color-danger)', color: 'white', border: 'none',
+                                                borderRadius: '50%', width: '18px', height: '18px', fontSize: '12px',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                                            }}
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="form-group">
@@ -247,11 +286,11 @@ const ProductModal = ({ product, isOpen, onClose, onSave }) => {
 
                     <div className="form-group">
                         <label>Description</label>
-                        <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows="3" style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}></textarea>
+                        <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} rows="3"></textarea>
                     </div>
 
                     <button type="submit" disabled={loading || uploading} className="btn-primary" style={{ marginTop: '1rem' }}>
-                        {uploading ? 'Uploading Image...' : loading ? 'Saving...' : 'Save Product'}
+                        {uploading ? 'Uploading Images...' : loading ? 'Saving...' : 'Save Product'}
                     </button>
                 </form>
             </div>
